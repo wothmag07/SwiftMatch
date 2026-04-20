@@ -1,0 +1,77 @@
+name: swiftmatch
+
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: swiftmatch-redis
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:17.9-alpine3.22
+    container_name: swiftmatch-postgres
+    environment:
+      POSTGRES_DB: swiftmatch
+      POSTGRES_USER: swiftmatch
+      POSTGRES_PASSWORD: swiftmatch
+    ports: ["5433:5432"]   # host 5433 avoids collision with local Postgres; container still speaks 5432 internally
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swiftmatch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: swiftmatch-kafka
+    ports:
+      - "9092:9092"   # internal docker network
+      - "9094:9094"   # external (host) access
+    environment:
+      KAFKA_NODE_ID: 0
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: swiftmatch-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports: ["8090:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: swiftmatch
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+
+  # ---------------------------------------------------------------------------
+  # OSRM — placeholder. Requires a preprocessed San Francisco extract.
+  # Enable once `infra/osrm/data/san-francisco.osrm.*` files exist (M4).
+  # See infra/osrm/README.md for the build pipeline.
+  # ---------------------------------------------------------------------------
+  # osrm:
+  #   image: osrm/osrm-backend:v5.27.1
+  #   container_name: swiftmatch-osrm
+  #   command: osrm-routed --algorithm mld /data/san-francisco.osrm
+  #   volumes: ["./infra/osrm/data:/data:ro"]
+  #   ports: ["5000:5000"]
+
+volumes:
+  postgres-data:

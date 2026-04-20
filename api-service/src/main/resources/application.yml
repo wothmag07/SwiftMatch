@@ -1,0 +1,55 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/swiftmatch}
+    username: ${DB_USER:swiftmatch}
+    password: ${DB_PASSWORD:swiftmatch}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9094}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+swiftmatch:
+  city:
+    name: sf
+    center:
+      lat: 37.7749
+      lng: -122.4194
+    bbox:
+      southLat: 37.70
+      westLng: -122.52
+      northLat: 37.82
+      eastLng: -122.36
+  match:
+    radiiKm: [2, 5, 10]
+    timeoutMs: 8000
+  lock:
+    tryLockMs: 0
+    leaseMs: 10000
+  osrm:
+    baseUrl: ${OSRM_URL:http://localhost:5000}

@@ -1,0 +1,38 @@
+# Maven
+target/
+*.class
+dependency-reduced-pom.xml
+.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ / Eclipse / VS Code
+.idea/
+*.iml
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+
+# Node / Vite (web module)
+node_modules/
+dist/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env
+.env
+.env.local
+*.log
+logs/
+
+# OSRM preprocessed data (large, built locally)
+infra/osrm/data/
+
+# Test artifacts
+surefire-reports/
+failsafe-reports/
+
+specs/

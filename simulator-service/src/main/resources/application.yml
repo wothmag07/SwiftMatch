@@ -1,0 +1,32 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: simulator-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9094}
+    consumer:
+      group-id: simulator
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.swiftmatch.common.*"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+
+swiftmatch:
+  simulator:
+    enabled: true
+    driverCount: 100
+    tickIntervalMs: 2000
+    speedKmh: 30
+    city: sf
+    declineProbability: 0.0
+  apiBaseUrl: ${API_URL:http://localhost:8080}
+  osrmBaseUrl: ${OSRM_URL:http://localhost:5000}
