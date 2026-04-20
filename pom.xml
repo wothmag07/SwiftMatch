@@ -31,7 +31,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <testcontainers.version>1.20.3</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
         <redisson.version>3.33.0</redisson.version>
         <springdoc.version>2.6.0</springdoc.version>
     </properties>
@@ -72,5 +72,35 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <!--
+          Skip spring-boot-maven-plugin on the aggregator POM so that
+          `./mvnw spring-boot:run` invoked from the repo root does not fail
+          trying to find a main class here. Each runnable module (api-service,
+          indexer-service, etc.) activates the plugin explicitly in its own
+          pom.xml, which overrides this skip.
+        -->
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
+            <!-- Run *IT.java integration tests at the verify phase. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>
