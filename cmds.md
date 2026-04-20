@@ -281,5 +281,77 @@ docker compose down -v && docker compose up -d
 
 ---
 
+## 10. Smoke tests — `feat/driver-registration`
+
+Assumes `docker compose up -d redis postgres` is healthy and api-service is running on :8080.
+
+### Git Bash
+
+```bash
+# create driver (capture id)
+ID=$(curl -s -X POST http://localhost:8080/v1/drivers \
+   -H 'Content-Type: application/json' \
+   -d '{"name":"Alice","vehicle":"Toyota Prius"}' | jq -r .id)
+
+# lifecycle
+curl -s http://localhost:8080/v1/drivers/$ID | jq
+curl -s -X POST http://localhost:8080/v1/drivers/$ID/online  | jq
+curl -s -X POST http://localhost:8080/v1/drivers/$ID/offline | jq
+
+# redis state
+docker exec swiftmatch-redis redis-cli GET driver:$ID:status
+docker exec swiftmatch-redis redis-cli TTL driver:$ID:status
+docker exec swiftmatch-redis redis-cli GET driver:$ID:heartbeat
+
+# postgres state
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch \
+  -c "SELECT id, name, status FROM drivers ORDER BY created_at DESC LIMIT 5;"
+
+# error paths
+curl -s -i -X POST http://localhost:8080/v1/drivers \
+   -H 'Content-Type: application/json' -d '{"name":"","vehicle":""}'    # 400
+curl -s -i http://localhost:8080/v1/drivers/00000000-0000-0000-0000-000000000000   # 404
+
+# ON_TRIP → offline forbidden
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch \
+  -c "UPDATE drivers SET status='ON_TRIP' WHERE id='$ID'"
+curl -s -i -X POST http://localhost:8080/v1/drivers/$ID/offline           # 409
+
+# clean
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch -c "DELETE FROM drivers;"
+```
+
+### PowerShell
+
+```powershell
+# create + capture id
+$driver = Invoke-RestMethod -Method Post http://localhost:8080/v1/drivers `
+    -ContentType 'application/json' `
+    -Body '{"name":"Alice","vehicle":"Toyota Prius"}'
+$ID = $driver.id
+
+# lifecycle
+Invoke-RestMethod http://localhost:8080/v1/drivers/$ID | ConvertTo-Json
+Invoke-RestMethod -Method Post http://localhost:8080/v1/drivers/$ID/online  | ConvertTo-Json
+Invoke-RestMethod -Method Post http://localhost:8080/v1/drivers/$ID/offline | ConvertTo-Json
+
+# redis + postgres checks
+docker exec swiftmatch-redis redis-cli GET "driver:${ID}:status"
+docker exec swiftmatch-redis redis-cli TTL "driver:${ID}:status"
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch -c "SELECT id, status FROM drivers WHERE id='$ID';"
+
+# error paths (Invoke-RestMethod throws on >=400, so catch + print)
+try { Invoke-RestMethod -Method Post http://localhost:8080/v1/drivers -ContentType 'application/json' -Body '{"name":"","vehicle":""}' }
+catch { $_.Exception.Response.StatusCode; $_.ErrorDetails.Message }
+
+try { Invoke-RestMethod http://localhost:8080/v1/drivers/00000000-0000-0000-0000-000000000000 }
+catch { $_.Exception.Response.StatusCode; $_.ErrorDetails.Message }
+
+# clean
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch -c "DELETE FROM drivers;"
+```
+
+---
+
 > This file is maintained continuously. Any terminal command suggested in chat is added here
 > under the relevant section.
