@@ -31,7 +31,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <testcontainers.version>1.20.3</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
         <redisson.version>3.33.0</redisson.version>
         <springdoc.version>2.6.0</springdoc.version>
     </properties>
@@ -72,5 +72,20 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- Run *IT.java integration tests at the verify phase. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

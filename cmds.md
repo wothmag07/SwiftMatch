@@ -68,21 +68,39 @@ Permanent fix: set `JAVA_HOME` under Windows "Environment Variables → User var
 
 ## 4. Build the project (Maven)
 
-```powershell
+Git Bash is the primary shell per CLAUDE.md. PowerShell equivalents shown for cross-reference; replace `./mvnw` with `.\mvnw.cmd` if in PowerShell.
+
+```bash
 # full build of all 5 modules
-.\mvnw.cmd -B verify
+./mvnw -B verify
 
 # install all modules to ~/.m2 so `-pl` works
-.\mvnw.cmd install -DskipTests
+./mvnw install -DskipTests
 
 # build + run one service (requires common already installed)
-.\mvnw.cmd -pl api-service spring-boot:run
+./mvnw -pl api-service spring-boot:run
 
 # build + run, auto-building deps first (no separate install step)
-.\mvnw.cmd -pl api-service -am spring-boot:run
+./mvnw -pl api-service -am spring-boot:run
 ```
 
-Bash equivalent: replace `.\mvnw.cmd` with `./mvnw`.
+### Run tests
+
+```bash
+# unit tests only (surefire picks up *Test.java)
+./mvnw -pl api-service test
+
+# unit + integration tests (failsafe picks up *IT.java at verify phase)
+./mvnw -pl api-service verify
+
+# run a single test class
+./mvnw -pl api-service test -Dtest=DriverStatusTransitionsTest
+
+# run integration tests against running compose stack (required for *IT.java)
+RUN_IT=true ./mvnw -pl api-service verify
+```
+
+Integration tests hit the **live compose infra** (Postgres :5433, Redis :6379), not Testcontainers. `docker compose up -d redis postgres` must be running first. Without `RUN_IT=true`, `*IT.java` tests are skipped so the default build stays green in minimal environments.
 
 Generate / regenerate the wrapper:
 
@@ -155,12 +173,50 @@ Kafka UI in a browser: <http://localhost:8090>
 
 ## 7. Git
 
+### Branching convention
+
+Branches are named after the **feature they deliver**, not the milestone that spawned them. See [specs/plans/branching-convention.md](specs/plans/branching-convention.md) for the full map.
+
+```powershell
+# feature-based branch (preferred)
+git checkout -b feat/driver-registration
+git checkout -b feat/location-ingestion
+git checkout -b chore/osrm-routing-engine
+
+# NEVER:  feat/m2-ingestion, feat/phase-3, chore/m4-osrm
+```
+
+### Commit subjects
+
+```text
+<type>: <imperative subject>
+
+# good
+feat: add driver registration endpoint
+chore: initial project scaffold
+fix: unbind local postgres service from port 5432
+
+# bad
+feat: M2 ingestion
+```
+
+Optional body footer for traceability:
+
+```text
+feat: add driver registration endpoint
+
+Milestone: M2
+Refs: SRS-DRV-1..4
+```
+
+### Everyday commands
+
 ```powershell
 # stage and commit
 git add .
 git status
 git status --ignored                        # see what .gitignore is skipping
-git commit -m "feat: M1 scaffold - 4 services + wrapper + compose infra"
+git commit -m "chore: initial project scaffold"
 
 # stop tracking a path that slipped through .gitignore
 git rm --cached -r target/
