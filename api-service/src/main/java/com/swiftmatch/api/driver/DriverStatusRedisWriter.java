@@ -9,8 +9,7 @@ import java.util.UUID;
 
 /**
  * Thin wrapper around the driver status + heartbeat keys in Redis.
- * TTLs come from [SRS-DRV-5] (30s for AVAILABLE / heartbeat) and [SRS-MAT-4] (3600s for ON_TRIP).
- * See [SRS-§6.1] for the key catalog.
+ * TTLs: 30 s for AVAILABLE / heartbeat keys, 1 h for ON_TRIP.
  */
 @Component
 public class DriverStatusRedisWriter {

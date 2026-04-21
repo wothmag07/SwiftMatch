@@ -37,3 +37,6 @@ surefire-reports/
 failsafe-reports/
 
 specs/
+
+# Local working guide for Claude Code (not pushed)
+CLAUDE.md

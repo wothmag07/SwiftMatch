@@ -5,7 +5,7 @@ import com.swiftmatch.common.driver.DriverStatus;
 
 /**
  * Pure functions encoding the allowed driver-status transitions.
- * See [SRS-DRV-5..10]. Kept state-less and framework-free for easy unit testing.
+ * Kept state-less and framework-free for easy unit testing.
  */
 public final class DriverStatusTransitions {
 
@@ -16,7 +16,7 @@ public final class DriverStatusTransitions {
      * Resolve the target state when the driver requests "go online".
      * <p>
      * - OFFLINE   → AVAILABLE
-     * - AVAILABLE → AVAILABLE (idempotent per [SRS-DRV-9])
+     * - AVAILABLE → AVAILABLE (idempotent no-op)
      * - ON_TRIP   → ON_TRIP   (no-op; trip completion will free them)
      */
     public static DriverStatus applyOnline(DriverStatus current) {
@@ -31,7 +31,7 @@ public final class DriverStatusTransitions {
      * <p>
      * - OFFLINE   → OFFLINE (idempotent)
      * - AVAILABLE → OFFLINE
-     * - ON_TRIP   → throws {@link DriverOnTripException} per [SRS-DRV-10]
+     * - ON_TRIP   → throws {@link DriverOnTripException}
      */
     public static DriverStatus applyOffline(DriverStatus current, java.util.UUID driverId) {
         return switch (current) {

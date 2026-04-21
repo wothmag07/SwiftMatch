@@ -12,9 +12,8 @@ import org.springframework.util.backoff.ExponentialBackOff;
 
 /**
  * Overrides the default Spring Boot listener factory to install a bounded
- * exponential-backoff retry per [SRS-LOC-7]: 100 ms, 200 ms, 400 ms, then a
- * no-op recoverer that logs ERROR and skips the record. DLT intentionally
- * omitted per Amendment 001 §4.2 (BL-2).
+ * exponential-backoff retry: 100 ms, 200 ms, 400 ms, then a no-op recoverer
+ * that logs ERROR and skips the record. Dead-letter topic support is deferred.
  */
 @Configuration
 public class KafkaConsumerConfig {

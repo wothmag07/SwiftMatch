@@ -1,5 +1,8 @@
 package com.swiftmatch.api.error;
 
+import com.swiftmatch.api.ride.NoDriverFoundException;
+import com.swiftmatch.api.ride.OutOfServiceAreaException;
+import com.swiftmatch.api.ride.RiderHasActiveRideException;
 import com.swiftmatch.common.error.ProblemType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -14,7 +17,7 @@ import java.util.stream.Collectors;
 
 /**
  * Produces RFC 7807 Problem+JSON responses for application errors.
- * MVP-binding types (per Amendment 001 §4.4): validation, not-found, no-driver-found.
+ * MVP-binding types: validation, not-found, no-driver-found.
  * Extended types (driver-on-trip) also flow through here for consistency.
  */
 @RestControllerAdvice
@@ -69,6 +72,36 @@ public class GlobalExceptionHandler {
         problem.setTitle("Ingestion publisher timed out");
         problem.setDetail(ex.getMessage());
         problem.setProperty("driverId", ex.getDriverId().toString());
+        return body(problem);
+    }
+
+    @ExceptionHandler(NoDriverFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNoDriverFound(NoDriverFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.SERVICE_UNAVAILABLE);
+        problem.setType(ProblemType.NO_DRIVER_FOUND.uri());
+        problem.setTitle("No driver available");
+        problem.setDetail(ex.getMessage());
+        problem.setProperty("rideId", ex.getRideId().toString());
+        return body(problem);
+    }
+
+    @ExceptionHandler(OutOfServiceAreaException.class)
+    public ResponseEntity<ProblemDetail> handleOutOfServiceArea(OutOfServiceAreaException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setType(ProblemType.OUT_OF_SERVICE_AREA.uri());
+        problem.setTitle("Coordinates outside service area");
+        problem.setDetail(ex.getMessage());
+        problem.setProperty("field", ex.getField());
+        return body(problem);
+    }
+
+    @ExceptionHandler(RiderHasActiveRideException.class)
+    public ResponseEntity<ProblemDetail> handleRiderHasActiveRide(RiderHasActiveRideException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problem.setType(ProblemType.RIDER_HAS_ACTIVE_RIDE.uri());
+        problem.setTitle("Rider already has an active ride");
+        problem.setDetail(ex.getMessage());
+        problem.setProperty("riderId", ex.getRiderId().toString());
         return body(problem);
     }
 

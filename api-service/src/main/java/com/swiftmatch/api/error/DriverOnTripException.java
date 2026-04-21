@@ -4,7 +4,7 @@ import java.util.UUID;
 
 /**
  * Thrown when a caller attempts to transition a driver to OFFLINE while they are ON_TRIP.
- * Maps to HTTP 409 per [SRS-DRV-10].
+ * Maps to HTTP 409.
  */
 public class DriverOnTripException extends RuntimeException {
 

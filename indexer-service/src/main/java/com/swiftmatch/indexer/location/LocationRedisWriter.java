@@ -7,11 +7,16 @@ import org.springframework.stereotype.Component;
 
 /**
  * Applies one {@link LocationEvent} to the Redis hot state:
- * {@code GEOADD drivers:active <lng> <lat> <driverId>} and
- * {@code EXPIRE driver:{id}:heartbeat 30} per [SRS-LOC-5].
+ * {@code GEOADD drivers:active <lng> <lat> <driverId>},
+ * {@code EXPIRE driver:{id}:heartbeat 30}, and
+ * {@code EXPIRE driver:{id}:status 30} so continuous location traffic
+ * keeps a driver matchable without re-calling {@code /online}. The status
+ * refresh is a pragmatic extension of the heartbeat-refresh rule; it avoids a
+ * gap the matcher stumbles over when simulator-service isn't driving the lifecycle.
  *
- * <p>Executed as a single pipelined unit so both commands hit Redis in one round-trip.
- * Exceptions propagate to the consumer, which lets {@code DefaultErrorHandler} retry.
+ * <p>Executed as a single pipelined unit so all three commands hit Redis in one
+ * round-trip. Exceptions propagate to the consumer, which lets
+ * {@code DefaultErrorHandler} retry.
  */
 @Component
 public class LocationRedisWriter {
@@ -35,11 +40,18 @@ public class LocationRedisWriter {
             connection.keyCommands().expire(
                     heartbeatKey(id).getBytes(),
                     HEARTBEAT_TTL_SECONDS);
+            connection.keyCommands().expire(
+                    statusKey(id).getBytes(),
+                    HEARTBEAT_TTL_SECONDS);
             return null;
         });
     }
 
     static String heartbeatKey(String id) {
         return "driver:" + id + ":heartbeat";
+    }
+
+    static String statusKey(String id) {
+        return "driver:" + id + ":status";
     }
 }
