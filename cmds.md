@@ -96,11 +96,14 @@ Git Bash is the primary shell per CLAUDE.md. PowerShell equivalents shown for cr
 # run a single test class
 ./mvnw -pl api-service test -Dtest=DriverStatusTransitionsTest
 ./mvnw -pl api-service test -Dtest=CityBboxTest
+./mvnw -pl api-service test -Dtest=RideMatcherTest
+./mvnw -pl api-service test -Dtest=EtaEstimatorTest
 ./mvnw -pl indexer-service test -Dtest=LocationHistoryBufferTest
 
 # run integration tests against running compose stack (required for *IT.java)
 RUN_IT=true ./mvnw -pl api-service verify
 RUN_IT=true ./mvnw -pl api-service test -Dtest=LocationIngestionIT
+RUN_IT=true ./mvnw -pl api-service test -Dtest=RideMatchingIT
 RUN_IT=true ./mvnw -pl indexer-service test -Dtest=LocationIndexerIT
 ```
 
@@ -204,13 +207,13 @@ fix: unbind local postgres service from port 5432
 feat: M2 ingestion
 ```
 
-Optional body footer for traceability:
+Keep the body focused on *why* the change was made (not *what* — the diff already shows that):
 
 ```text
 feat: add driver registration endpoint
 
-Milestone: M2
-Refs: SRS-DRV-1..4
+Covers the `POST /v1/drivers` + online/offline lifecycle so downstream
+features (location ingestion, matching) have a driver to target.
 ```
 
 ### Everyday commands
@@ -425,6 +428,74 @@ curl -s -i -X POST http://localhost:8080/v1/drivers/$ID/location \
    -H 'Content-Type: application/json' \
    -d '{"lat":37.77,"lng":-122.41,"recordedAt":"2026-04-20T12:00:20Z"}'
 docker start swiftmatch-kafka
+```
+
+---
+
+## 12. Smoke tests — `feat/ride-request-matching`
+
+Assumes `docker compose up -d redis postgres kafka kafka-ui` is healthy and both
+`api-service` + `indexer-service` are running (so driver locations actually land
+in `drivers:active`).
+
+### Git Bash
+
+```bash
+# create a rider
+RID=$(curl -s -X POST http://localhost:8080/v1/riders \
+   -H 'Content-Type: application/json' \
+   -d '{"name":"Rhea"}' | jq -r .id)
+
+# create + online + place a driver inside SF
+DID=$(curl -s -X POST http://localhost:8080/v1/drivers \
+   -H 'Content-Type: application/json' \
+   -d '{"name":"Alice","vehicle":"Toyota Prius"}' | jq -r .id)
+curl -s -X POST http://localhost:8080/v1/drivers/$DID/online | jq
+curl -s -X POST http://localhost:8080/v1/drivers/$DID/location \
+   -H 'Content-Type: application/json' \
+   -d '{"lat":37.7749,"lng":-122.4194,"recordedAt":"2026-04-20T12:00:00Z"}'
+sleep 1   # give indexer-service time to GEOADD
+
+# happy path — expect 200 ASSIGNED with the driver's id
+curl -s -i -X POST http://localhost:8080/v1/rides \
+   -H 'Content-Type: application/json' \
+   -d "{\"riderId\":\"$RID\",\"pickup\":{\"lat\":37.7749,\"lng\":-122.4194},\"dropoff\":{\"lat\":37.7849,\"lng\":-122.4094}}"
+
+# Postgres + Redis side-effects
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch \
+  -c "SELECT id, driver_id, status, assigned_at FROM rides ORDER BY requested_at DESC LIMIT 1;"
+docker exec swiftmatch-redis redis-cli GET driver:$DID:status   # expect ON_TRIP
+
+# Kafka side-effect — consume one record from ride.assignment.v1
+docker exec swiftmatch-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server kafka:9092 --topic ride.assignment.v1 \
+  --from-beginning --max-messages 1
+
+# no-driver path — second rider, no more AVAILABLE drivers → 503 no-driver-found
+RID2=$(curl -s -X POST http://localhost:8080/v1/riders \
+   -H 'Content-Type: application/json' -d '{"name":"Rico"}' | jq -r .id)
+curl -s -i -X POST http://localhost:8080/v1/rides \
+   -H 'Content-Type: application/json' \
+   -d "{\"riderId\":\"$RID2\",\"pickup\":{\"lat\":37.7749,\"lng\":-122.4194},\"dropoff\":{\"lat\":37.7849,\"lng\":-122.4094}}"
+
+# out-of-service-area — expect 400
+curl -s -i -X POST http://localhost:8080/v1/rides \
+   -H 'Content-Type: application/json' \
+   -d "{\"riderId\":\"$RID\",\"pickup\":{\"lat\":0,\"lng\":0},\"dropoff\":{\"lat\":37.78,\"lng\":-122.41}}"
+
+# unknown rider — expect 404 not-found
+curl -s -i -X POST http://localhost:8080/v1/rides \
+   -H 'Content-Type: application/json' \
+   -d "{\"riderId\":\"00000000-0000-0000-0000-000000000000\",\"pickup\":{\"lat\":37.77,\"lng\":-122.42},\"dropoff\":{\"lat\":37.78,\"lng\":-122.41}}"
+
+# rider already has an active ride — second POST from same rider → 409
+curl -s -i -X POST http://localhost:8080/v1/rides \
+   -H 'Content-Type: application/json' \
+   -d "{\"riderId\":\"$RID\",\"pickup\":{\"lat\":37.7749,\"lng\":-122.4194},\"dropoff\":{\"lat\":37.7849,\"lng\":-122.4094}}"
+
+# clean
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch \
+  -c "DELETE FROM rides; DELETE FROM riders; DELETE FROM drivers;"
 ```
 
 ---

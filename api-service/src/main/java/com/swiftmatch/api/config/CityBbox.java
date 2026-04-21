@@ -3,8 +3,8 @@ package com.swiftmatch.api.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Service-area bounding box per [SRS-§4.11]. Coordinates outside this bbox are
- * still accepted on ingestion (per [SRS-LOC-9]) but logged at WARN.
+ * Service-area bounding box. Coordinates outside this bbox are still accepted
+ * on ingestion but logged at WARN.
  */
 @ConfigurationProperties("swiftmatch.city.bbox")
 public record CityBbox(

@@ -12,7 +12,8 @@ import java.util.UUID;
 
 /**
  * Validates a single location update against the configured city bbox (WARN-only
- * per [SRS-LOC-9]) and hands a {@link LocationEvent} to {@link LocationProducer}.
+ * on a miss — out-of-bbox points are still accepted) and hands a
+ * {@link LocationEvent} to {@link LocationProducer}.
  */
 @Service
 public class LocationService {

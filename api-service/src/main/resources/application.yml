@@ -27,7 +27,7 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
       properties:
-        # Enforce [SRS-LOC-4] at the producer layer too (future.get(200ms) is the primary cutoff).
+        # 200 ms producer-side cutoff (future.get(200ms) in LocationProducer is the primary enforcement).
         delivery.timeout.ms: 200
         request.timeout.ms: 200
         linger.ms: 0
@@ -59,5 +59,7 @@ swiftmatch:
   lock:
     tryLockMs: 0
     leaseMs: 10000
+  simulator:
+    speedKmh: 30
   osrm:
     baseUrl: ${OSRM_URL:http://localhost:5000}

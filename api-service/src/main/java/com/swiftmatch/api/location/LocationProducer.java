@@ -13,7 +13,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Publishes {@link LocationEvent}s to the {@code driver.location.v1} topic.
- * Blocks on the producer future for at most 200 ms per [SRS-LOC-4] — on timeout
+ * Blocks on the producer future for at most 200 ms (the ingestion timeout budget) — on timeout
  * or send failure the caller sees {@link IngestionTimeoutException}.
  */
 @Component

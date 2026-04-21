@@ -7,10 +7,11 @@ import org.springframework.stereotype.Component;
 
 /**
  * Consumes {@code driver.location.v1} in consumer group {@code indexer}.
- * Side effects per [SRS-LOC-5] (Redis index) and [SRS-LOC-8] (batched history).
+ * Side effects: Redis GEO + heartbeat refresh, and a batched insert to
+ * {@code location_history}.
  *
  * <p>Ack fires after Redis success; Postgres flush is asynchronous (see
- * {@link LocationHistoryBuffer}). [SRS-LOC-6]
+ * {@link LocationHistoryBuffer}).
  */
 @Component
 public class LocationConsumer {

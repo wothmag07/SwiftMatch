@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Buffers {@link LocationEvent}s in memory and flushes them to
  * {@code location_history} either when the queue reaches {@code batchSize}
- * or every {@code batchIntervalMs} (whichever comes first) per [SRS-LOC-8].
+ * or every {@code batchIntervalMs} (whichever comes first).
  *
  * <p>By design the Kafka consumer acks before the buffer flushes; an indexer
  * crash can drop up to one in-flight batch. Acceptable in MVP: {@code
