@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/swiftmatch
+    username: swiftmatch
+    password: swiftmatch
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:9094
+
+swiftmatch:
+  history:
+    batchSize: 500
+    batchIntervalMs: 200

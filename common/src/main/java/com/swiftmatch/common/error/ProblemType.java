@@ -13,7 +13,8 @@ public enum ProblemType {
     NOT_FOUND("not-found"),
     NO_DRIVER_FOUND("no-driver-found"),
     DRIVER_ON_TRIP("driver-on-trip"),
-    INVALID_RIDE_TRANSITION("invalid-ride-transition");
+    INVALID_RIDE_TRANSITION("invalid-ride-transition"),
+    INGESTION_TIMEOUT("ingestion-timeout");
 
     private static final String BASE = "https://swiftmatch.local/errors/";
 

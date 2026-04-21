@@ -26,6 +26,12 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
+      properties:
+        # Enforce [SRS-LOC-4] at the producer layer too (future.get(200ms) is the primary cutoff).
+        delivery.timeout.ms: 200
+        request.timeout.ms: 200
+        linger.ms: 0
+        spring.json.add.type.headers: false
 
 management:
   endpoints:
