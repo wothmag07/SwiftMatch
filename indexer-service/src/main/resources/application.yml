@@ -8,9 +8,13 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/swiftmatch}
     username: ${DB_USER:swiftmatch}
     password: ${DB_PASSWORD:swiftmatch}
+  # api-service owns schema migrations; indexer only reads/writes an already-migrated DB.
+  flyway:
+    enabled: false
   jpa:
     hibernate:
       ddl-auto: none
+    open-in-view: false
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -25,12 +29,19 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.swiftmatch.common.*"
+        spring.json.value.default.type: com.swiftmatch.common.location.LocationEvent
+        spring.json.use.type.headers: false
+    listener:
+      ack-mode: manual
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
 
 swiftmatch:
   history:

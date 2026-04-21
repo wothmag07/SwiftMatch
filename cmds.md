@@ -95,9 +95,13 @@ Git Bash is the primary shell per CLAUDE.md. PowerShell equivalents shown for cr
 
 # run a single test class
 ./mvnw -pl api-service test -Dtest=DriverStatusTransitionsTest
+./mvnw -pl api-service test -Dtest=CityBboxTest
+./mvnw -pl indexer-service test -Dtest=LocationHistoryBufferTest
 
 # run integration tests against running compose stack (required for *IT.java)
 RUN_IT=true ./mvnw -pl api-service verify
+RUN_IT=true ./mvnw -pl api-service test -Dtest=LocationIngestionIT
+RUN_IT=true ./mvnw -pl indexer-service test -Dtest=LocationIndexerIT
 ```
 
 Integration tests hit the **live compose infra** (Postgres :5433, Redis :6379), not Testcontainers. `docker compose up -d redis postgres` must be running first. Without `RUN_IT=true`, `*IT.java` tests are skipped so the default build stays green in minimal environments.
@@ -221,6 +225,24 @@ git commit -m "chore: initial project scaffold"
 # stop tracking a path that slipped through .gitignore
 git rm --cached -r target/
 git commit -m "chore: stop tracking target/"
+```
+
+### Open a PR (requires `gh` CLI)
+
+```bash
+git push -u origin <branch>
+gh pr create --title "feat: <subject>" --body "$(cat <<'EOF'
+## What
+...
+## Why
+...
+## Acceptance
+...
+Refs: <SRS IDs>
+EOF
+)"
+gh pr view --web                  # open in browser
+gh pr merge --merge               # or --squash / --rebase
 ```
 
 ## 8. Shell differences (PowerShell vs Git Bash)
@@ -349,6 +371,60 @@ catch { $_.Exception.Response.StatusCode; $_.ErrorDetails.Message }
 
 # clean
 docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch -c "DELETE FROM drivers;"
+```
+
+---
+
+## 11. Smoke tests — `feat/location-ingestion`
+
+Assumes `docker compose up -d redis postgres kafka kafka-ui` is healthy. Run **both** `api-service` and `indexer-service` (two terminals) so the full ingestion → index → history pipeline is live.
+
+```bash
+./mvnw -pl api-service -am spring-boot:run
+./mvnw -pl indexer-service -am spring-boot:run
+```
+
+### Git Bash
+
+```bash
+# seed a driver and bring them online
+ID=$(curl -s -X POST http://localhost:8080/v1/drivers \
+   -H 'Content-Type: application/json' \
+   -d '{"name":"Alice","vehicle":"Toyota Prius"}' | jq -r .id)
+curl -s -X POST http://localhost:8080/v1/drivers/$ID/online | jq
+
+# happy path — 202 Accepted
+curl -s -i -X POST http://localhost:8080/v1/drivers/$ID/location \
+   -H 'Content-Type: application/json' \
+   -d '{"lat":37.7749,"lng":-122.4194,"recordedAt":"2026-04-20T12:00:00Z"}'
+
+# Redis GEO (within ~1s)
+docker exec swiftmatch-redis redis-cli GEOPOS drivers:active $ID
+docker exec swiftmatch-redis redis-cli TTL driver:$ID:heartbeat
+
+# Postgres location_history (within ~2s)
+docker exec swiftmatch-postgres psql -U swiftmatch -d swiftmatch \
+  -c "SELECT count(*) FROM location_history WHERE driver_id='$ID';"
+
+# out-of-bbox (still 202, WARN in indexer logs)
+curl -s -i -X POST http://localhost:8080/v1/drivers/$ID/location \
+   -H 'Content-Type: application/json' \
+   -d '{"lat":0.0,"lng":0.0,"recordedAt":"2026-04-20T12:00:05Z"}'
+
+# invalid lat → 400 Problem+JSON
+curl -s -i -X POST http://localhost:8080/v1/drivers/$ID/location \
+   -H 'Content-Type: application/json' \
+   -d '{"lat":200.0,"lng":-122.41,"recordedAt":"2026-04-20T12:00:10Z"}'
+
+# Kafka-side — inspect the topic in the UI
+#   http://localhost:8090  → swiftmatch cluster → driver.location.v1
+
+# optional: trigger the ingestion-timeout path (expect 503 Problem+JSON)
+docker stop swiftmatch-kafka
+curl -s -i -X POST http://localhost:8080/v1/drivers/$ID/location \
+   -H 'Content-Type: application/json' \
+   -d '{"lat":37.77,"lng":-122.41,"recordedAt":"2026-04-20T12:00:20Z"}'
+docker start swiftmatch-kafka
 ```
 
 ---

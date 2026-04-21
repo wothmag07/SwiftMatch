@@ -4,6 +4,7 @@ import com.swiftmatch.common.error.ProblemType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -47,6 +48,25 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setType(ProblemType.DRIVER_ON_TRIP.uri());
         problem.setTitle("Driver is on a trip");
+        problem.setDetail(ex.getMessage());
+        problem.setProperty("driverId", ex.getDriverId().toString());
+        return body(problem);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ProblemDetail> handleMalformedJson(HttpMessageNotReadableException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setType(ProblemType.VALIDATION.uri());
+        problem.setTitle("Malformed request body");
+        problem.setDetail(ex.getMostSpecificCause().getMessage());
+        return body(problem);
+    }
+
+    @ExceptionHandler(IngestionTimeoutException.class)
+    public ResponseEntity<ProblemDetail> handleIngestionTimeout(IngestionTimeoutException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.SERVICE_UNAVAILABLE);
+        problem.setType(ProblemType.INGESTION_TIMEOUT.uri());
+        problem.setTitle("Ingestion publisher timed out");
         problem.setDetail(ex.getMessage());
         problem.setProperty("driverId", ex.getDriverId().toString());
         return body(problem);
